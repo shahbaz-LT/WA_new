@@ -1,81 +1,44 @@
 import "dotenv/config";
 import express from "express";
 import bodyParser from "body-parser";
-import axios  from "axios";
+import mongoose from "mongoose";
+import Customer from "./modules/customer/index.js";
+import Order from "./modules/order/index.js";
+import Webhooks from "./modules/webhooks/index.js";
 
 const app = express().use(bodyParser.json());
-const token=process.env.TOKEN;
-const mytoken=process.env.MYTOKEN;//prasath_token
 
-app.listen(8080,()=>{
-  console.log("WebHook server listening on 8080");
+mongoose.set("strictQuery", false);
+mongoose.connect('mongodb+srv://admin:admin@cluster0.jesrrzk.mongodb.net/?retryWrites=true&w=majority',()=>{
+  console.log("MongoDB Connection established");
+});
+mongoose.Promise = global.Promise;
+
+
+app.get("/", (req, res) => {
+  res.status(200).send("Hello, this is the WhatsApp-Railway Project");
 });
 
-//to verify the callback url from dashboard side - cloud api side
-app.get("/webhook",(req,res)=>{
-   let mode=req.query["hub.mode"];
-   let challange=req.query["hub.challenge"];
-   let token=req.query["hub.verify_token"];
+Customer.init(app);
+Order.init(app);
+Webhooks.init(app);
 
+//Route Errors
+app.use((req, res, next) => {
+  const error = new Error('Not Found');
+  error.status = 404;
+  next(error);
+});
 
-    if(mode && token){
-
-        if(mode==="subscribe" && token===mytoken){
-            res.status(200).send(challange);
-        }else{
-            res.status(403);
-        }
-
+app.use((error, req, res, next) => {
+  res.status(error.status || 500);
+  res.json({
+    error: {
+      message: error.message
     }
-
+  });
 });
 
-app.post("/webhook",(req,res)=>{ //i want some 
-
-    let body_param=req.body;
-
-    console.log(JSON.stringify(body_param,null,2));
-
-    if(body_param.object){
-        console.log("inside body param");
-        if(body_param.entry && 
-            body_param.entry[0].changes && 
-            body_param.entry[0].changes[0].value.messages && 
-            body_param.entry[0].changes[0].value.messages[0]  
-            ){
-               let phon_no_id=body_param.entry[0].changes[0].value.metadata.phone_number_id;
-               let from = body_param.entry[0].changes[0].value.messages[0].from; 
-               let msg_body = body_param.entry[0].changes[0].value.messages[0].text.body;
-
-               console.log("phone number "+phon_no_id);
-               console.log("from "+from);
-               console.log("boady param "+msg_body);
-
-               axios({
-                   method:"POST",
-                   url:"https://graph.facebook.com/v13.0/"+phon_no_id+"/messages?access_token="+token,
-                   data:{
-                       messaging_product:"whatsapp",
-                       to:from,
-                       text:{
-                           body:"Hi.. I'm Prasath, your message is "+msg_body
-                       }
-                   },
-                   headers:{
-                       "Content-Type":"application/json"
-                   }
-
-               });
-
-               res.sendStatus(200);
-            }else{
-                res.sendStatus(404);
-            }
-
-    }
-
-});
-
-app.get("/",(req,res)=>{
-    res.status(200).send("hello this is webhook setup");
+app.listen(8080, () => {
+  console.log("WebHook server listening at http://localhost:8080");
 });
