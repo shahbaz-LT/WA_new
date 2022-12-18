@@ -13,6 +13,12 @@ const Whatsapp = new WhatsappCloudAPI({
   graphAPIVersion: 'v15.0'
 });
 
+let firstMessage = false;
+let isCustomer = false;
+let isPlacingOrder = false;
+let isCheckingOrderStatus = false;
+let isBroker = false;
+let isUpdatingOrderStatus = false;
 
 class WebhooksHandler {
   verifyCallback(req, res, next) {
@@ -91,24 +97,121 @@ class WebhooksHandler {
         // extract the message id
         let message_id = incomingMessage.message_id;
 
-
         if (typeOfMsg === 'text_message') {
-          await Whatsapp.sendSimpleButtons({
-            message: `Hey ${recipientName},
+
+          // check if user is already registered as customer/broker
+          if (!firstMessage) {
+
+            firstMessage = true;
+            await Whatsapp.sendSimpleButtons({
+              message: `Hey ${recipientName},
             \nWelcome to the LetsTransport WhatsApp Service.
             \nAre you a Customer or a Broker ?`,
-            recipientPhone: recipientPhone,
-            listOfButtons: [
-              {
-                title: 'Customer',
-                id: 'user_is_Customer',
-              },
-              {
-                title: 'Broker',
-                id: 'user_is_broker',
-              },
-            ],
-          });
+              recipientPhone: recipientPhone,
+              listOfButtons: [
+                {
+                  title: 'Customer',
+                  id: 'user_is_customer',
+                },
+                {
+                  title: 'Broker',
+                  id: 'user_is_broker',
+                },
+              ],
+            });
+          }
+
+          else {
+
+              if(isCustomer){
+
+                if(isPlacingOrder){
+
+                  console.log("Data is : ");
+                  console.log(data);
+                }
+
+                if(isCheckingOrderStatus){
+              
+                }
+
+              }
+
+              if(isBroker){
+
+              }
+
+          }
+        }
+
+        if (typeOfMsg == 'simple_button_message') {
+
+          let button_id = incomingMessage.button_reply.id;
+
+          if (button_id === 'user_is_customer') {
+
+            isCustomer = true;
+
+            await Whatsapp.sendSimpleButtons({
+              message: `What action do you want to perform ?`,
+              recipientPhone: recipientPhone,
+              listOfButtons: [
+                {
+                  title: 'Place an Order',
+                  id: 'place_order',
+                },
+                {
+                  title: 'Track Previously Placed Order',
+                  id: 'get_order_status',
+                },
+              ],
+            });
+
+          }
+
+          if (button_id === 'user_is_broker') {
+
+            isBroker = true;
+
+
+          }
+
+          if (button_id === 'place_order') {
+
+            isPlacingOrder = true;
+
+            await Whatsapp.sendText({
+              message: ` Please revert back with the following details 
+              \nCustomer ID :
+              \nSource Address :
+              \nDestination Address :
+              \nExact Pickup Pincode :
+              \nExact Destination Pincode :
+              \nVolume of the Consigment :
+              \nWeight of the Consigment : 
+              \nSeparated by Commas between them.`,
+              recipientPhone: recipientPhone
+            });
+          }
+
+          if (button_id === 'get_order_status') {
+            await Whatsapp.sendText({
+              message: 'Please Enter Order-ID of the Order you want to Track',
+              recipientPhone: recipientPhone
+            });
+
+          }
+
+          if (button_id === 'update_order_status') {
+
+          }
+
+          if (button_id === 'generate_order_invoice') {
+
+          }
+
+
+
         }
 
       }
