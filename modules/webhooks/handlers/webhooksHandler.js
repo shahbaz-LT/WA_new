@@ -157,11 +157,11 @@ class WebhooksHandler {
               recipientPhone: recipientPhone,
               listOfButtons: [
                 {
-                  title: 'Place an Order',
+                  title: 'Place Order',
                   id: 'place_order',
                 },
                 {
-                  title: 'Track Previously Placed Order',
+                  title: 'Track Order',
                   id: 'get_order_status',
                 },
               ],
