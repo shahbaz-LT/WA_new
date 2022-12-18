@@ -1,7 +1,18 @@
 import axios from "axios";
 import "dotenv/config";
+import WhatsappCloudAPI from "whatsappcloudapi_wrapper";
+
+
 const token = process.env.TOKEN;
 const mytoken = process.env.MYTOKEN;
+
+const Whatsapp = new WhatsappCloudAPI({
+  accessToken: token,
+  senderPhoneNumberId: process.env.Meta_WA_SenderPhoneNumberId,
+  WABA_ID: process.env.Meta_WA_wabaId,
+  graphAPIVersion: 'v15.0'
+});
+
 
 class WebhooksHandler {
   verifyCallback(req, res, next) {
@@ -59,11 +70,61 @@ class WebhooksHandler {
     }
   }
 
+  async chatbot(req, res, next) {
+    try {
+      console.log('POST: Someone is pinging me!');
+
+      let data = Whatsapp.parseMessage(req.body);
+
+      if (data?.isMessage) {
+        let incomingMessage = data.message;
+
+        // extract the phone number of sender
+        let recipientPhone = incomingMessage.from.phone;
+
+        //extract the name of the sender
+        let recipientName = incomingMessage.from.name;
+
+        // extract the type of message (some are text, others are images, others are responses to buttons etc...)
+        let typeOfMsg = incomingMessage.type;
+
+        // extract the message id
+        let message_id = incomingMessage.message_id;
+
+
+        if (typeOfMsg === 'text_message') {
+          await Whatsapp.sendSimpleButtons({
+            message: `Hey ${recipientName},
+            \nWelcome to the LetsTransport WhatsApp Service.
+            \nAre you a Customer or a Broker ?`,
+            recipientPhone: recipientPhone,
+            listOfButtons: [
+              {
+                title: 'Customer',
+                id: 'user_is_Customer',
+              },
+              {
+                title: 'Broker',
+                id: 'user_is_broker',
+              },
+            ],
+          });
+        }
+
+      }
+      return res.sendStatus(200);
+    } catch (error) {
+      console.error({ error })
+      return res.sendStatus(500);
+    }
+
+  }
+
 
 
   init(app) {
     app.get('/api/webhook', this.verifyCallback);
-    app.post('/api/webhook', this.receiveMessage);
+    app.post('/api/webhook', this.chatbot);
   }
 }
 
