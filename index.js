@@ -14,7 +14,6 @@ mongoose.connect('mongodb+srv://admin:admin@cluster0.jesrrzk.mongodb.net/?retryW
 });
 mongoose.Promise = global.Promise;
 
-
 app.get("/", (req, res) => {
   res.status(200).send("Hello, this is the WhatsApp-Railway Project");
 });

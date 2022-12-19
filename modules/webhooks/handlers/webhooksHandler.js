@@ -1,7 +1,6 @@
-import axios from "axios";
 import "dotenv/config";
 import WhatsappCloudAPI from "whatsappcloudapi_wrapper";
-
+import orderHelper from "../../order/helpers/orderHelper.js";
 
 const token = process.env.TOKEN;
 const mytoken = process.env.MYTOKEN;
@@ -13,12 +12,8 @@ const Whatsapp = new WhatsappCloudAPI({
   graphAPIVersion: 'v15.0'
 });
 
-let firstMessage = false;
-let isCustomer = false;
-let isPlacingOrder = false;
-let isCheckingOrderStatus = false;
-let isBroker = false;
-let isUpdatingOrderStatus = false;
+const userSession = new Map();
+
 
 class WebhooksHandler {
   verifyCallback(req, res, next) {
@@ -31,47 +26,6 @@ class WebhooksHandler {
         next();
       } else {
         res.status(403);
-      }
-    }
-  }
-
-  receiveMessage(req, res, next) {
-    let body_param = req.body;
-    console.log(JSON.stringify(body_param, null, 2));
-    if (body_param.object) {
-      console.log("inside body param");
-      if (body_param.entry &&
-        body_param.entry[0].changes &&
-        body_param.entry[0].changes[0].value.messages &&
-        body_param.entry[0].changes[0].value.messages[0]
-      ) {
-        let phon_no_id = body_param.entry[0].changes[0].value.metadata.phone_number_id;
-        let from = body_param.entry[0].changes[0].value.messages[0].from;
-        let msg_body = body_param.entry[0].changes[0].value.messages[0].text.body;
-
-        console.log("phone number " + phon_no_id);
-        console.log("from " + from);
-        console.log("boady param " + msg_body);
-
-        axios({
-          method: "POST",
-          url: "https://graph.facebook.com/v15.0/" + phon_no_id + "/messages?access_token=" + token,
-          data: {
-            messaging_product: "whatsapp",
-            to: from,
-            text: {
-              body: "Hi, this is Railway Project Management ChatBot, your message that you just sent is " + msg_body
-            }
-          },
-          headers: {
-            "Content-Type": "application/json"
-          }
-
-        });
-
-        res.sendStatus(200);
-      } else {
-        res.sendStatus(404);
       }
     }
   }
@@ -97,12 +51,24 @@ class WebhooksHandler {
         // extract the message id
         let message_id = incomingMessage.message_id;
 
+        if (!userSession.get(recipientPhone)) {
+          userSession.set(recipientPhone, {
+            firstMessage: false,
+            isCustomer: false,
+            isPlacingOrder: false,
+            isCheckingOrderStatus: false,
+            isBroker: false,
+            isUpdatingOrderStatus: false,
+          });
+        }
+
         if (typeOfMsg === 'text_message') {
 
           // check if user is already registered as customer/broker
-          if (!firstMessage) {
+          if (!userSession.get(recipientPhone).firstMessage) {
 
-            firstMessage = true;
+            userSession.get(recipientPhone).firstMessage = true;
+
             await Whatsapp.sendSimpleButtons({
               message: `Hey ${recipientName},
             \nWelcome to the LetsTransport WhatsApp Service.
@@ -123,34 +89,52 @@ class WebhooksHandler {
 
           else {
 
-              if(isCustomer){
+            if (!userSession.get(recipientPhone).isCustomer) {
 
-                if(isPlacingOrder){
+              if (!userSession.get(recipientPhone).isPlacingOrder) {
 
-                  console.log("Data is : ");
-                  console.log(data);
+                const msgArr = data.message.text.body.split(',');
+                const result = await orderHelper.createOrderFromStringArray(msgArr);
+
+                if (result.status === 200) {
+                  await Whatsapp.sendText({
+                    message: `Order Created with Order-ID ${result.order._id}.`,
+                    recipientPhone: recipientPhone
+                  });
+
+                  userSession.delete(recipientPhone);
                 }
-
-                if(isCheckingOrderStatus){
-              
+                else {
+                  await Whatsapp.sendText({
+                    message: `Order Could not be Created due to - ${result.message}.
+                    Please try again with corrct format and values.` ,
+                    recipientPhone: recipientPhone
+                  });
                 }
+              }
+
+              if (!userSession.get(recipientPhone).isCheckingOrderStatus) {
 
               }
 
-              if(isBroker){
+            }
 
-              }
+            if (!userSession.get(recipientPhone).isBroker) {
+
+            }
 
           }
         }
 
+
+        //Reply for Button Messages :
         if (typeOfMsg == 'simple_button_message') {
 
           let button_id = incomingMessage.button_reply.id;
 
           if (button_id === 'user_is_customer') {
 
-            isCustomer = true;
+            userSession.get(recipientPhone).isCustomer = true;
 
             await Whatsapp.sendSimpleButtons({
               message: `What action do you want to perform ?`,
@@ -171,14 +155,14 @@ class WebhooksHandler {
 
           if (button_id === 'user_is_broker') {
 
-            isBroker = true;
+            userSession.get(recipientPhone).isBroker = true;
 
 
           }
 
           if (button_id === 'place_order') {
 
-            isPlacingOrder = true;
+            userSession.get(recipientPhone).isPlacingOrder = true;
 
             await Whatsapp.sendText({
               message: ` Please revert back with the following details 
@@ -210,9 +194,11 @@ class WebhooksHandler {
 
           }
 
-
-
         }
+
+        await Whatsapp.markMessageAsRead({
+          message_id,
+        });
 
       }
       return res.sendStatus(200);
