@@ -14,7 +14,6 @@ const Whatsapp = new WhatsappCloudAPI({
 
 const userSession = new Map();
 
-
 class WebhooksHandler {
   verifyCallback(req, res, next) {
     let mode = req.query["hub.mode"];
@@ -90,15 +89,18 @@ class WebhooksHandler {
           else {
 
             if (!userSession.get(recipientPhone).isCustomer) {
-
               if (!userSession.get(recipientPhone).isPlacingOrder) {
 
-                const msgArr = data.message.text.body.split(',');
-                const result = await orderHelper.createOrderFromStringArray(msgArr);
+                const msgArr = data.message.text.body;
+                console.log("Data is --> " + msgArr);
+                const msgArr2 = msgArr.split(',');
 
-                if (result.status === 200) {
+                const result = await orderHelper.createOrderFromStringArray(msgArr2);
+                console.log("Resut is --> " + result.message);
+
+                if (result.status == 200) {
                   await Whatsapp.sendText({
-                    message: `Order Created with Order-ID ${result.order._id}.`,
+                    message: `Order Created with Order-ID ${result._id}.`,
                     recipientPhone: recipientPhone
                   });
 
@@ -107,13 +109,34 @@ class WebhooksHandler {
                 else {
                   await Whatsapp.sendText({
                     message: `Order Could not be Created due to - ${result.message}.
-                    Please try again with corrct format and values.` ,
+                    Please try again with correct format and values.` ,
                     recipientPhone: recipientPhone
                   });
                 }
               }
 
               if (!userSession.get(recipientPhone).isCheckingOrderStatus) {
+                const orderId = data.message.text.body;
+
+                const result = await orderHelper.getOrderById(orderId);
+
+                if(result.status == 200){
+                  await Whatsapp.sendText({
+                    message: `OrderID is correct , volume of parcel is ->
+                    ${result.volume}.`,
+                    recipientPhone: recipientPhone
+                  });
+
+                  userSession.delete(recipientPhone);
+                }
+                else{
+                  await Whatsapp.sendText({
+                    message: `Order couldnt be fetched because - ${result.message}.
+                    Please try again with correct format and values.` ,
+                    recipientPhone: recipientPhone
+                  });
+
+                }
 
               }
 

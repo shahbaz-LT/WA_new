@@ -1,3 +1,4 @@
+import order from '../index.js';
 import order from '../models/index.js';
 
 class OrderHelper {
@@ -38,6 +39,27 @@ class OrderHelper {
       result.message = err.message;
     }
 
+    return result;
+  }
+
+  async getOrderById(orderId){
+    const result = {
+      'status': 500,
+      'message': 'Internal Server Error',
+    };
+
+    try{
+      const order = await order.findById(orderId);
+
+      result.status = 200;
+      result.message = "Success";
+      result['volume'] = order.volume;
+      result['weight'] = order.weight;
+    }
+
+    catch{
+      result.message = err.message;
+    }
     return result;
   }
 }
