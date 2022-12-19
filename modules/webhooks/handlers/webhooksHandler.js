@@ -23,6 +23,9 @@ class WebhooksHandler {
     }
     else {
       console.log("WebHook Callback not verified");
+
+      console.log(mode + " " + typeof(mode));
+      console.log(token + " " + typeof(token));
       res.status(403);
     }
   }
