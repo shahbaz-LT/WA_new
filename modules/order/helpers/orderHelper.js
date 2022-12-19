@@ -32,7 +32,7 @@ class OrderHelper {
       const newOrder = await order.create(body);
       result.status = 200;
       result.message = "Success";
-      result[_id] = newOrder._id;
+      result['_id'] = newOrder._id;
     }
     catch(err){
       result.message = err.message;
