@@ -1,17 +1,9 @@
 import "dotenv/config";
-import WhatsappCloudAPI from "whatsappcloudapi_wrapper";
+import webhooksHelper from "../helpers/webhooksHelper.js";
 import orderHelper from "../../order/helpers/orderHelper.js";
 
 const token = process.env.TOKEN;
 const mytoken = process.env.MYTOKEN;
-
-const Whatsapp = new WhatsappCloudAPI({
-  accessToken: token,
-  senderPhoneNumberId: process.env.Meta_WA_SenderPhoneNumberId,
-  WABA_ID: process.env.Meta_WA_wabaId,
-  graphAPIVersion: 'v15.0'
-});
-
 const userSession = new Map();
 
 class WebhooksHandler {
@@ -19,20 +11,26 @@ class WebhooksHandler {
     let mode = req.query["hub.mode"];
     let challange = req.query["hub.challenge"];
     let token = req.query["hub.verify_token"];
+    console.log(mode, challange, token);
     if (mode && token) {
       if (mode === "subscribe" && token === mytoken) {
         res.status(200).send(challange);
         next();
       } else {
+        console.log("WebHook Callback Failed becuase Mode/Token doenst match");
         res.status(403);
       }
+    }
+    else {
+      console.log("WebHook Callback not verified");
+      res.status(403);
     }
   }
 
   async chatbot(req, res, next) {
     try {
       console.log('POST: Someone is pinging me!');
-
+      const Whatsapp = webhooksHelper.initiliazeWhatsApp();
       let data = Whatsapp.parseMessage(req.body);
 
       if (data?.isMessage) {
@@ -120,7 +118,7 @@ class WebhooksHandler {
 
                 const result = await orderHelper.getOrderById(orderId);
 
-                if(result.status == 200){
+                if (result.status == 200) {
                   await Whatsapp.sendText({
                     message: `OrderID is correct , volume of parcel is ->
                     ${result.volume}.`,
@@ -129,7 +127,7 @@ class WebhooksHandler {
 
                   userSession.delete(recipientPhone);
                 }
-                else{
+                else {
                   await Whatsapp.sendText({
                     message: `Order couldnt be fetched because - ${result.message}.
                     Please try again with correct format and values.` ,

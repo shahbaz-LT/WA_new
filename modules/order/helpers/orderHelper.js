@@ -13,7 +13,7 @@ class OrderHelper {
     if (arrSize < 7) {
       return result;
     }
-
+    
     if (arrSize > 7) {
       result.message = "Too many parameters to create order";
       return result;
