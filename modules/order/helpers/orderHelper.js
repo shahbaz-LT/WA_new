@@ -1,4 +1,3 @@
-import order from '../index.js';
 import order from '../models/index.js';
 
 class OrderHelper {
